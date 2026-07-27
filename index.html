@@ -62,6 +62,7 @@
   .mini-del{border:none;background:transparent;font-size:15px;cursor:pointer;padding:2px 4px;flex:none}
   .add-btn{margin-top:10px;border:2px dashed var(--leaf);background:rgba(102,187,106,.12);color:var(--tree);border-radius:12px;padding:8px 10px;font-size:13px;font-weight:800;cursor:pointer;width:100%}
   .add-btn.big{padding:12px;font-size:15px;margin-top:14px}
+  .add-btn.danger{border-color:var(--pink);background:rgba(239,154,154,.14);color:#c62828}
   .edit-hint{background:var(--gold);color:#5d4037;text-align:center;font-weight:800;font-size:13px;padding:8px;border-radius:12px;margin:0 0 12px}
   .task-card{background:var(--panel);border:2px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;box-shadow:0 3px 10px rgba(0,0,0,.04)}
   .task-card.done{opacity:.6}
@@ -338,6 +339,7 @@ function renderHome(){
   });
   if(EDIT_MODE){
     html+=`<button class="add-btn big" data-act="addsubj">＋ 添加新科目</button>`;
+    html+=`<button class="add-btn big danger" data-act="reset">↺ 恢复默认科目</button>`;
   }
   html+=`<div class="sec-t">🛠️ 小工具</div><div class="tools">
     <div class="tool" data-go="garden"><div class="ti">🌳</div><div class="tl">森林</div></div>
@@ -533,6 +535,14 @@ function handleEdit(act, si, tid){
     subs[si].tasks.forEach(t=>delete state.done[t.id]);
     subs.splice(si,1);
     save(); renderHome(); toast("已删除科目");
+  }else if(act==="reset"){
+    if(!confirm("将恢复默认科目与事项，你新增/改名/删除的科目都会重置，确定？")) return;
+    // 清掉已删除科目/事项对应的 done 标记
+    const keep=DEFAULT_SUBJECTS();
+    const ids=new Set(keep.flatMap(s=>s.tasks.map(t=>t.id)));
+    Object.keys(state.done).forEach(k=>{ if(!ids.has(k)) delete state.done[k]; });
+    state.subjects=keep;
+    save(); renderHome(); toast("已恢复默认科目");
   }
 }
 
