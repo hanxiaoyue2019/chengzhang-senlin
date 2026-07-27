@@ -54,6 +54,11 @@
 
   /* 作业清单卡片 */
   .sec-t{font-size:15px;font-weight:900;margin:16px 4px 8px;color:var(--ink);display:flex;align-items:center;gap:6px}
+  .subj-group{background:var(--panel);border:2px solid var(--line);border-radius:18px;padding:10px 12px 12px;margin-bottom:12px;box-shadow:0 3px 10px rgba(0,0,0,.04)}
+  .subj-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding-bottom:6px;border-bottom:2px dashed var(--mint)}
+  .subj-ic{font-size:22px}
+  .subj-name{font-size:16px;font-weight:900;flex:1}
+  .subj-badge{font-size:12px;font-weight:800;background:var(--leaf);color:#fff;border-radius:10px;padding:2px 9px}
   .task-card{background:var(--panel);border:2px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;box-shadow:0 3px 10px rgba(0,0,0,.04)}
   .task-card.done{opacity:.6}
   .task-ic{width:42px;height:42px;border-radius:12px;background:var(--mint2);display:flex;align-items:center;justify-content:center;font-size:24px;flex:none}
@@ -303,14 +308,19 @@ function renderHome(){
   let html=`<div class="trial"><div class="ic">🌟</div><div class="tx"><b>森林试炼</b><div>累计 ${sunCount()} 阳光，离下一阶段还差 ${Math.max(0,50-sunCount()%50)}</div><div class="pg"><i id="trial-pg" style="width:${Math.min(100,Math.round(sunCount()/50*100))}%"></i></div></div></div>`;
   html+=`<div class="sec-t">📋 今日作业</div>`;
   getSubjects().forEach((s,si)=>{
+    const total=s.tasks.length;
+    const done=s.tasks.filter(t=>state.done[t.id]).length;
+    html+=`<div class="subj-group">
+      <div class="subj-head"><span class="subj-ic">${s.icon}</span><span class="subj-name">${s.name}</span><span class="subj-badge">${done}/${total}</span></div>`;
     s.tasks.forEach(t=>{
       const d=state.done[t.id];
       html+=`<div class="task-card ${d?'done':''}" data-id="${t.id}">
         <div class="task-ic">${s.icon}</div>
-        <div class="task-mid"><div class="tn">${t.n}</div><div class="ts">${s.name} · +${SUN_PER_TASK}🌞</div></div>
+        <div class="task-mid"><div class="tn">${t.n}</div><div class="ts">+${SUN_PER_TASK}🌞</div></div>
         <div class="task-check" data-id="${t.id}">${d?'✓':''}</div>
       </div>`;
     });
+    html+=`</div>`;
   });
   html+=`<div class="sec-t">🛠️ 小工具</div><div class="tools">
     <div class="tool" data-go="garden"><div class="ti">🌳</div><div class="tl">森林</div></div>
