@@ -246,6 +246,7 @@ function load(){
     const s=JSON.parse(localStorage.getItem(STORE_KEY));
     if(s && s.done!==undefined){
       if(!s.subjects) s.subjects=clone(DEFAULT_SUBJECTS());
+      if(!s.days) s.days={};
       if(s.streak===undefined) s.streak=0;
       if(!s.lastDay) s.lastDay=null;
       if(!s.history) s.history={};
@@ -259,26 +260,39 @@ function load(){
   return newState();
 }
 function DEFAULT_SUBJECTS(){return SUBJECTS.map(s=>({key:s.key,name:s.name,icon:s.icon,tasks:s.tasks.map((n,i)=>({id:s.key+i,n}))}));}
-function newState(){return {done:{},plants:[],evo:[],subjects:DEFAULT_SUBJECTS(),streak:0,lastDay:null,history:{},log:[],grade:"五年级",plots:[],pwdSet:false};}
+function newState(){return {done:{},plants:[],evo:[],subjects:DEFAULT_SUBJECTS(),days:{},streak:0,lastDay:null,history:{},log:[],grade:"五年级",plots:[],pwdSet:false};}
 function clone(o){return JSON.parse(JSON.stringify(o));}
-function getSubjects(){return state.subjects&&state.subjects.length?state.subjects:DEFAULT_SUBJECTS();}
+/* 当天作业数据：每天一份可编辑副本，基于模板 subjects 生成 */
+function ensureToday(){
+  const t=todayStr();
+  if(!state.days[t]){
+    // 旧版本迁移：把全局 done 迁到今天，避免原有进度丢失
+    const migrate = state.done && Object.keys(state.done).length ? state.done : {};
+    state.days[t]={subjects:clone(state.subjects), done:migrate};
+    state.done={};
+    save();
+  }
+  return state.days[t];
+}
+function todayData(){ return ensureToday(); }
+function getSubjects(){ return todayData().subjects; }
 function save(){localStorage.setItem(STORE_KEY,JSON.stringify(state));}
 function genId(){return "t"+Date.now().toString(36)+Math.floor(Math.random()*999);}
 function allTasks(){return getSubjects().flatMap(s=>s.tasks.map(t=>({...t,subj:s.name,icon:s.icon})));}
-function doneCount(){return Object.values(state.done).filter(Boolean).length;}
+function doneCount(){const d=todayData().done;return Object.values(d).filter(Boolean).length;}
 function sunCount(){return doneCount()*SUN_PER_TASK;}
 function plantCount(){return state.plants.length;}
 
-/* 每日重置：作业刷新，保留历史/阳光/植物/连续 */
+/* 每日处理：跨天时计算连续天数，当天作业副本由 ensureToday 生成 */
 function dailyReset(s){
   const t=todayStr();
   if(s.lastDay===t) return;
   let gap=s.lastDay?dateDiff(s.lastDay,t):999;
-  const lastDone=s.history[s.lastDay]&&s.history[s.lastDay].done>0;
+  const lastDay=s.lastDay&&s.days[s.lastDay];
+  const lastDone=lastDay&&Object.values(lastDay.done).some(Boolean);
   if(s.lastDay&&gap===1&&lastDone) s.streak=(s.streak||0)+1; else s.streak=0;
-  s.done={};
   s.lastDay=t;
-  s.history[t]={done:0,sun:0};
+  if(!s.history[t]) s.history[t]={done:0,sun:0};
 }
 function logEvent(text, delta){
   state.log.unshift({time:Date.now(), text, delta});
@@ -315,14 +329,14 @@ function renderHome(){
   html+=`<div class="sec-t">📋 今日作业</div>`;
   getSubjects().forEach((s,si)=>{
     const total=s.tasks.length;
-    const done=s.tasks.filter(t=>state.done[t.id]).length;
+    const done=s.tasks.filter(t=>todayData().done[t.id]).length;
     const headEdit = EDIT_MODE
       ? `<button class="mini-del" data-act="delsubj" data-s="${si}" title="删除科目">🗑️</button>`
       : ``;
     html+=`<div class="subj-group">
       <div class="subj-head"><span class="subj-ic">${s.icon}</span><span class="subj-name" ${EDIT_MODE?`data-renames="${si}"`:''}>${s.name}</span><span class="subj-badge">${done}/${total}</span>${headEdit}</div>`;
     s.tasks.forEach(t=>{
-      const d=state.done[t.id];
+      const d=todayData().done[t.id];
       const itemEdit = EDIT_MODE
         ? `<button class="mini-del" data-act="deltask" data-s="${si}" data-t="${t.id}" title="删除">🗑️</button>`
         : ``;
@@ -339,7 +353,8 @@ function renderHome(){
   });
   if(EDIT_MODE){
     html+=`<button class="add-btn big" data-act="addsubj">＋ 添加新科目</button>`;
-    html+=`<button class="add-btn big danger" data-act="reset">↺ 恢复默认科目</button>`;
+    html+=`<button class="add-btn big" data-act="savetpl">💾 存为每日模板</button>`;
+    html+=`<button class="add-btn big danger" data-act="reset">↺ 恢复今天的默认</button>`;
   }
   html+=`<div class="sec-t">🛠️ 小工具</div><div class="tools">
     <div class="tool" data-go="garden"><div class="ti">🌳</div><div class="tl">森林</div></div>
@@ -357,9 +372,10 @@ function renderHome(){
   }
 }
 function toggleTask(id){
-  if(state.done[id]){ state.done[id]=false; }
+  const d=todayData().done;
+  if(d[id]){ d[id]=false; }
   else{
-    state.done[id]=true;
+    d[id]=true;
     const t=allTasks().find(x=>x.id===id);
     sfxDone(); sfxSun();
     logEvent(`完成了「${t.subj}·${t.n}」`, SUN_PER_TASK);
@@ -516,33 +532,34 @@ document.getElementById("pwd-input").addEventListener("keydown",e=>{if(e.key==="
 
 function handleEdit(act, si, tid){
   const subs=getSubjects();
+  const done=todayData().done;
   if(act==="addtask"){
     subs[si].tasks.push({id:genId(), n:"新事项"});
-    save(); renderHome(); toast("已添加事项，点名称可改名");
+    save(); renderHome(); toast("已添加事项（仅今天），点名称可改名");
   }else if(act==="deltask"){
     const tk=subs[si].tasks.find(x=>x.id===tid);
-    if(tk && state.done[tid]){ if(!confirm("这项已完成，删除会扣回进度，确定？")) return; }
+    if(tk && done[tid]){ if(!confirm("这项已完成，删除会扣回进度，确定？")) return; }
     subs[si].tasks=subs[si].tasks.filter(x=>x.id!==tid);
-    delete state.done[tid];
-    save(); renderHome(); toast("已删除事项");
+    delete done[tid];
+    save(); renderHome(); toast("已删除事项（仅今天）");
   }else if(act==="addsubj"){
     const icons=["📖","🔢","🔤","🌿","🎹","🏊","🎨","⚽","🎵","🧩","🌟","📝"];
     subs.push({key:genId(), name:"新科目", icon:icons[subs.length%icons.length], tasks:[{id:genId(), n:"新事项"}]});
-    save(); renderHome(); toast("已添加科目");
+    save(); renderHome(); toast("已添加科目（仅今天）");
   }else if(act==="delsubj"){
-    const cnt=subs[si].tasks.filter(t=>state.done[t.id]).length;
+    const cnt=subs[si].tasks.filter(t=>done[t.id]).length;
     if(cnt>0 && !confirm("该科目有已完成项，删除会扣回进度，确定？")) return;
-    subs[si].tasks.forEach(t=>delete state.done[t.id]);
+    subs[si].tasks.forEach(t=>delete done[t.id]);
     subs.splice(si,1);
-    save(); renderHome(); toast("已删除科目");
+    save(); renderHome(); toast("已删除科目（仅今天）");
   }else if(act==="reset"){
-    if(!confirm("将恢复默认科目与事项，你新增/改名/删除的科目都会重置，确定？")) return;
-    // 清掉已删除科目/事项对应的 done 标记
-    const keep=DEFAULT_SUBJECTS();
-    const ids=new Set(keep.flatMap(s=>s.tasks.map(t=>t.id)));
-    Object.keys(state.done).forEach(k=>{ if(!ids.has(k)) delete state.done[k]; });
-    state.subjects=keep;
-    save(); renderHome(); toast("已恢复默认科目");
+    if(!confirm("将把今天的作业重置为默认模板，你今天的增删改都会撤销，确定？")) return;
+    state.days[todayStr()]={subjects:clone(state.subjects), done:{}};
+    save(); renderHome(); toast("已恢复今天的默认作业");
+  }else if(act==="savetpl"){
+    if(!confirm("把今天编辑后的作业保存为每天模板？之后每天都会按此生成（不影响今天之前的历史）。")) return;
+    state.subjects=clone(subs);
+    save(); renderHome(); toast("已保存为每日模板");
   }
 }
 
