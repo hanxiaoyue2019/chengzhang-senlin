@@ -26,8 +26,8 @@
     radial-gradient(600px 360px at 5% 105%, rgba(77,182,172,.16), transparent),
     linear-gradient(180deg,#e8f5f0 0%, #e0f2f1 40%, #e8f5e9 100%);background-attachment:fixed}
 
-  header{position:relative;z-index:2;padding:14px 14px 4px;max-width:560px;margin:0 auto}
-  .profile{background:linear-gradient(135deg,var(--top1),var(--top2));border-radius:24px;padding:16px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 16px 34px rgba(27,94,32,.42),0 6px 0 rgba(27,94,32,.12),inset 0 1px 0 rgba(255,255,255,.45);color:#fff;transform:translateY(-2px);transition:transform .15s,box-shadow .15s;position:relative;overflow:hidden}
+  header{position:sticky;top:0;z-index:60;padding:10px 14px 8px;max-width:560px;margin:0 auto;background:linear-gradient(180deg,#e6f4ef 0%,#e0f2f1 75%,rgba(224,242,241,0) 100%);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 6px 14px rgba(27,94,32,.12)}
+  .profile{background:linear-gradient(135deg,var(--top1),var(--top2));border-radius:24px;padding:16px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 12px 30px rgba(27,94,32,.4),0 5px 0 rgba(27,94,32,.12),inset 0 1px 0 rgba(255,255,255,.45);color:#fff;transition:transform .15s,box-shadow .15s;position:relative;overflow:hidden}
   .profile::after{content:"";position:absolute;top:0;left:0;right:0;height:42%;background:linear-gradient(180deg,rgba(255,255,255,.22),transparent);pointer-events:none}
   .avatar{width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:28px;flex:none}
   .pinfo{flex:1;min-width:0}
@@ -38,7 +38,7 @@
   .pstat b{font-size:18px;font-weight:900}
   .pstat span{font-size:11px;opacity:.85}
 
-  nav{position:relative;z-index:2;max-width:560px;margin:12px auto 0;padding:0 14px;display:flex;gap:8px;overflow-x:auto}
+  nav{max-width:560px;margin:10px auto 0;padding:2px 14px 4px;display:flex;gap:8px;overflow-x:auto}
   nav button{background:var(--panel);border:2px solid var(--line);border-radius:18px;padding:8px 14px;font-size:13.5px;font-weight:800;color:var(--ink2);cursor:pointer;white-space:nowrap;transition:.15s}
   nav button.active{background:var(--tree);color:#fff;border-color:var(--tree);box-shadow:0 3px 0 #1b5e20}
 
@@ -148,17 +148,16 @@
       </div>
     </div>
   </div>
+  <nav id="nav">
+    <button data-tab="home" class="active">🏠 首页</button>
+    <button data-tab="garden">🌳 森林</button>
+    <button data-tab="pomo">⏱️ 番茄钟</button>
+    <button data-tab="log">📖 日志</button>
+    <button data-tab="book">🌿 图鉴</button>
+    <button data-tab="evo">✨ 试炼</button>
+    <button id="btn-edit">✏️ 家长</button>
+  </nav>
 </header>
-
-<nav id="nav">
-  <button data-tab="home" class="active">🏠 首页</button>
-  <button data-tab="garden">🌳 森林</button>
-  <button data-tab="pomo">⏱️ 番茄钟</button>
-  <button data-tab="log">📖 日志</button>
-  <button data-tab="book">🌿 图鉴</button>
-  <button data-tab="evo">✨ 试炼</button>
-  <button id="btn-edit">✏️ 家长</button>
-</nav>
 
 <main>
   <div id="tab-home"></div>
