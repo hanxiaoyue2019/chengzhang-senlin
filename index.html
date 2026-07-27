@@ -59,6 +59,10 @@
   .subj-ic{font-size:22px}
   .subj-name{font-size:16px;font-weight:900;flex:1}
   .subj-badge{font-size:12px;font-weight:800;background:var(--leaf);color:#fff;border-radius:10px;padding:2px 9px}
+  .mini-del{border:none;background:transparent;font-size:15px;cursor:pointer;padding:2px 4px;flex:none}
+  .add-btn{margin-top:10px;border:2px dashed var(--leaf);background:rgba(102,187,106,.12);color:var(--tree);border-radius:12px;padding:8px 10px;font-size:13px;font-weight:800;cursor:pointer;width:100%}
+  .add-btn.big{padding:12px;font-size:15px;margin-top:14px}
+  .edit-hint{background:var(--gold);color:#5d4037;text-align:center;font-weight:800;font-size:13px;padding:8px;border-radius:12px;margin:0 0 12px}
   .task-card{background:var(--panel);border:2px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;box-shadow:0 3px 10px rgba(0,0,0,.04)}
   .task-card.done{opacity:.6}
   .task-ic{width:42px;height:42px;border-radius:12px;background:var(--mint2);display:flex;align-items:center;justify-content:center;font-size:24px;flex:none}
@@ -305,23 +309,36 @@ function renderTop(){
 }
 function renderHome(){
   const el=document.getElementById("tab-home");
-  let html=`<div class="trial"><div class="ic">🌟</div><div class="tx"><b>森林试炼</b><div>累计 ${sunCount()} 阳光，离下一阶段还差 ${Math.max(0,50-sunCount()%50)}</div><div class="pg"><i id="trial-pg" style="width:${Math.min(100,Math.round(sunCount()/50*100))}%"></i></div></div></div>`;
+  let html = EDIT_MODE ? `<div class="edit-hint">✏️ 家长编辑：点科目名/事项名可改名，🗑️ 删除，下方按钮可加科目/事项</div>` : ``;
+  html+=`<div class="trial"><div class="ic">🌟</div><div class="tx"><b>森林试炼</b><div>累计 ${sunCount()} 阳光，离下一阶段还差 ${Math.max(0,50-sunCount()%50)}</div><div class="pg"><i id="trial-pg" style="width:${Math.min(100,Math.round(sunCount()/50*100))}%"></i></div></div></div>`;
   html+=`<div class="sec-t">📋 今日作业</div>`;
   getSubjects().forEach((s,si)=>{
     const total=s.tasks.length;
     const done=s.tasks.filter(t=>state.done[t.id]).length;
+    const headEdit = EDIT_MODE
+      ? `<button class="mini-del" data-act="delsubj" data-s="${si}" title="删除科目">🗑️</button>`
+      : ``;
     html+=`<div class="subj-group">
-      <div class="subj-head"><span class="subj-ic">${s.icon}</span><span class="subj-name">${s.name}</span><span class="subj-badge">${done}/${total}</span></div>`;
+      <div class="subj-head"><span class="subj-ic">${s.icon}</span><span class="subj-name" ${EDIT_MODE?`data-renames="${si}"`:''}>${s.name}</span><span class="subj-badge">${done}/${total}</span>${headEdit}</div>`;
     s.tasks.forEach(t=>{
       const d=state.done[t.id];
+      const itemEdit = EDIT_MODE
+        ? `<button class="mini-del" data-act="deltask" data-s="${si}" data-t="${t.id}" title="删除">🗑️</button>`
+        : ``;
       html+=`<div class="task-card ${d?'done':''}" data-id="${t.id}">
         <div class="task-ic">${s.icon}</div>
-        <div class="task-mid"><div class="tn">${t.n}</div><div class="ts">+${SUN_PER_TASK}🌞</div></div>
-        <div class="task-check" data-id="${t.id}">${d?'✓':''}</div>
+        <div class="task-mid"><div class="tn" ${EDIT_MODE?`data-renamet="${t.id}"`:''}>${t.n}</div><div class="ts">+${SUN_PER_TASK}🌞</div></div>
+        <div style="display:flex;align-items:center;gap:6px">${itemEdit}<div class="task-check" data-id="${t.id}">${d?'✓':''}</div></div>
       </div>`;
     });
+    if(EDIT_MODE){
+      html+=`<button class="add-btn" data-act="addtask" data-s="${si}">＋ 添加事项</button>`;
+    }
     html+=`</div>`;
   });
+  if(EDIT_MODE){
+    html+=`<button class="add-btn big" data-act="addsubj">＋ 添加新科目</button>`;
+  }
   html+=`<div class="sec-t">🛠️ 小工具</div><div class="tools">
     <div class="tool" data-go="garden"><div class="ti">🌳</div><div class="tl">森林</div></div>
     <div class="tool" data-go="pomo"><div class="ti">⏱️</div><div class="tl">番茄钟</div></div>
@@ -331,6 +348,11 @@ function renderHome(){
   el.innerHTML=html;
   el.querySelectorAll(".task-check").forEach(c=>c.onclick=()=>toggleTask(c.dataset.id));
   el.querySelectorAll(".tool").forEach(t=>t.onclick=()=>switchTab(t.dataset.go));
+  if(EDIT_MODE){
+    el.querySelectorAll("[data-act]").forEach(b=>b.onclick=()=>handleEdit(b.dataset.act,+b.dataset.s,b.dataset.t));
+    el.querySelectorAll("[data-renamet]").forEach(n=>n.onclick=()=>{const id=n.dataset.renamet;const tk=allTasks().find(x=>x.id===id);const nv=prompt("修改作业名称：",tk.n);if(nv){const sub=getSubjects().find(s=>s.tasks.some(x=>x.id===id));sub.tasks.find(x=>x.id===id).n=nv;save();renderHome();toast("已改名");}});
+    el.querySelectorAll("[data-renames]").forEach(n=>n.onclick=()=>{const si=+n.dataset.renames;const nv=prompt("修改科目名称：",getSubjects()[si].name);if(nv){getSubjects()[si].name=nv;save();renderHome();toast("已改名");}});
+  }
 }
 function toggleTask(id){
   if(state.done[id]){ state.done[id]=false; }
@@ -479,17 +501,40 @@ function toggleEdit(){
   if(pw===EDIT_PWD){EDIT_MODE=true;document.getElementById("btn-edit").textContent="✅ 完成";document.getElementById("btn-edit").classList.add("on");document.getElementById("ov-pwd").classList.remove("show");document.getElementById("pwd-input").value="";toast("进入家长编辑");renderHome();}
   else{document.getElementById("pwd-err").textContent=pw?"密码不对，试试 1234":"请输入家长密码（默认 1234）";}
 }
-document.getElementById("btn-edit").onclick=()=>{document.getElementById("pwd-input").value="";document.getElementById("pwd-err").textContent="";document.getElementById("ov-pwd").classList.add("show");document.getElementById("pwd-input").focus();};
+document.getElementById("btn-edit").onclick=()=>{
+  if(EDIT_MODE){ toggleEdit(); return; }   // 编辑中：直接退出
+  document.getElementById("pwd-input").value="";
+  document.getElementById("pwd-err").textContent="";
+  document.getElementById("ov-pwd").classList.add("show");
+  document.getElementById("pwd-input").focus();
+};
 document.getElementById("pwd-ok").onclick=toggleEdit;
 document.getElementById("pwd-cancel").onclick=()=>document.getElementById("ov-pwd").classList.remove("show");
 document.getElementById("pwd-input").addEventListener("keydown",e=>{if(e.key==="Enter")toggleEdit();});
 
-/* 家长编辑交互：在 home 里允许改名/增删（简化：长按事项改名）*/
-document.addEventListener("dblclick",e=>{
-  if(!EDIT_MODE)return;
-  const card=e.target.closest(".task-card");
-  if(card){const id=card.dataset.id;const t=allTasks().find(x=>x.id===id);const nv=prompt("修改作业名称：",t.n);if(nv){const sub=getSubjects().find(s=>s.tasks.some(x=>x.id===id));const tk=sub.tasks.find(x=>x.id===id);tk.n=nv;save();renderHome();toast("已改名");}}
-});
+function handleEdit(act, si, tid){
+  const subs=getSubjects();
+  if(act==="addtask"){
+    subs[si].tasks.push({id:genId(), n:"新事项"});
+    save(); renderHome(); toast("已添加事项，点名称可改名");
+  }else if(act==="deltask"){
+    const tk=subs[si].tasks.find(x=>x.id===tid);
+    if(tk && state.done[tid]){ if(!confirm("这项已完成，删除会扣回进度，确定？")) return; }
+    subs[si].tasks=subs[si].tasks.filter(x=>x.id!==tid);
+    delete state.done[tid];
+    save(); renderHome(); toast("已删除事项");
+  }else if(act==="addsubj"){
+    const icons=["📖","🔢","🔤","🌿","🎹","🏊","🎨","⚽","🎵","🧩","🌟","📝"];
+    subs.push({key:genId(), name:"新科目", icon:icons[subs.length%icons.length], tasks:[{id:genId(), n:"新事项"}]});
+    save(); renderHome(); toast("已添加科目");
+  }else if(act==="delsubj"){
+    const cnt=subs[si].tasks.filter(t=>state.done[t.id]).length;
+    if(cnt>0 && !confirm("该科目有已完成项，删除会扣回进度，确定？")) return;
+    subs[si].tasks.forEach(t=>delete state.done[t.id]);
+    subs.splice(si,1);
+    save(); renderHome(); toast("已删除科目");
+  }
+}
 
 /* ===== 年级选择 ===== */
 function renderGradeList(){
